@@ -9,6 +9,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Logging/TokenizedMessage.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AHordeModeCharacter
@@ -59,7 +60,7 @@ void AHordeModeCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 {
 	// Set up gameplay key bindings
 	check(PlayerInputComponent);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AHordeModeCharacter::JumpAction);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("ADS", IE_Pressed, this, &AHordeModeCharacter::ADSPress);
 	PlayerInputComponent->BindAction("ADS", IE_Released, this, &AHordeModeCharacter::ADSRelease);
@@ -76,6 +77,22 @@ void AHordeModeCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 }
 
+TEnumAsByte<EActionState> AHordeModeCharacter::GetActionState()
+{
+	return ActionState;
+}
+
+
+TEnumAsByte<EAimingState> AHordeModeCharacter::GetAimingState()
+{
+	return  AimingState;
+}
+
+bool AHordeModeCharacter::JumpInputPressed()
+{
+	return bJumpInput;
+}
+
 bool AHordeModeCharacter::IsCharacterAiming()
 {
 	return bIsAiming;
@@ -85,7 +102,26 @@ bool AHordeModeCharacter::IsCharacterAiming()
 void AHordeModeCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
+	UE_LOG(LogTemp, Warning, TEXT("Player State: %s"), *UEnum::GetValueAsString<EActionState>(ActionState));
+	if (GetCharacterMovement()->IsFalling())
+	{
+		if(!InAir)
+		{
+			InAir = true;
+			ActionState = Jumping;
+			bJumpInput = false;
+			OnGround = false;
+		}
+	}
+	else
+	{
+		if(!OnGround)
+		{
+			OnGround = true;
+			ActionState = Idle;
+			InAir = false;
+		}
+	}
 }
 
 void AHordeModeCharacter::BeginPlay()
@@ -99,36 +135,87 @@ void AHordeModeCharacter::BeginPlay()
 
 void AHordeModeCharacter::MoveForward(float Value)
 {
-	if ((Controller != NULL) && (Value != 0.0f))
+	ForwardInput = Value;
+	switch (ActionState)
 	{
-		// find out which way is forward
-		const FRotator Rotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
+		case Idle: case Running: case Jumping:
+		if ((Controller != NULL) && (Value != 0.0f))
+		{
+			// find out which way is forward
+			
+			const FRotator Rotation = Controller->GetControlRotation();
+			const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-		// get forward vector
-		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-		AddMovementInput(Direction, Value);
+			// get forward vector
+			const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+			AddMovementInput(Direction, Value);
+			if (GetCharacterMovement()->IsFalling())
+			{
+				ActionState = Jumping;
+				return;
+			}
+			ActionState = Running;
+		}
+		else if (RightInput == 0.0f && !GetCharacterMovement()->IsFalling())
+			ActionState = Idle;
+		break;
+
+		default:
+			break;
 	}
 }
 
 void AHordeModeCharacter::MoveRight(float Value)
 {
-	if ( (Controller != NULL) && (Value != 0.0f) )
+	RightInput = Value;
+	switch (ActionState)
 	{
-		// find out which way is right
-		const FRotator Rotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
-	
-		// get right vector 
-		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-		// add movement in that direction
-		AddMovementInput(Direction, Value);
+	case Idle: case Running: case Jumping:
+	    if ((Controller != NULL) && (Value != 0.0f))
+	    {
+    		// find out which way is forward
+    		const FRotator Rotation = Controller->GetControlRotation();
+    		const FRotator YawRotation(0, Rotation.Yaw, 0);
+
+    		// get forward vector
+    		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+    		AddMovementInput(Direction, Value);
+	    	if (GetCharacterMovement()->IsFalling())
+	    	{
+	    		ActionState = Jumping;
+	    		return;
+	    	}
+	    	ActionState = Running;
+	    }
+		else if (ForwardInput == 0.0f && !GetCharacterMovement()->IsFalling())
+			ActionState = Idle;
+		break;
+
+	default:
+		break;
 	}
+}
+
+
+void AHordeModeCharacter::JumpAction()
+{
+	switch (ActionState)
+	{
+		case Idle: case Running:
+			bJumpInput = true;
+			Jump();
+			break;
+		
+		default:
+			break;
+		
+	}
+	
 }
 
 void AHordeModeCharacter::Attack()
 {
-	if(bIsAiming)
+	if(AimingState == Aiming)
 	{
 		CurrentGun->PullTrigger();
 	}
@@ -151,11 +238,13 @@ void AHordeModeCharacter::ADSCamera()
 void AHordeModeCharacter::ADSPress()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Press"))
+	AimingState = Aiming;
 	ADSSetCamera(ADSZoomIn, true);
 }
 
 void AHordeModeCharacter::ADSRelease()
 {
+	AimingState = NotAiming;
 	ADSSetCamera(ADSDefault, false);
 }
 

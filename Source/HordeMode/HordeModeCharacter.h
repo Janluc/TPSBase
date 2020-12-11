@@ -15,7 +15,9 @@ enum EActionState
 {
 	Idle UMETA(DisplayName = "Idle"),
 	Running UMETA(DisplayName = "Running"),
-	Jumping UMETA(DisplayName = "Jumping")
+	Jumping UMETA(DisplayName = "Jumping"),
+	Attacking UMETA(DisplayName = "Attacking"),
+	Dashing UMETA(DisplayName = "Dashing")
 };
 
 UENUM(BlueprintType)
@@ -42,14 +44,19 @@ class AHordeModeCharacter : public ACharacter
 	class UCameraComponent* FollowCamera;
 
 	
-	TEnumAsByte<EActionState> LocomotionState;
-	TEnumAsByte<EAimingState> AimingState;
+	TEnumAsByte<EActionState> ActionState = Idle;
+	TEnumAsByte<EAimingState> AimingState = NotAiming;
 	
 	// ADS TIMELINE
+	UPROPERTY()
 	UTimelineComponent* ResetCameraTimeline;
 	FOnTimelineFloat ResetCameraTimelineFunction;
 	UPROPERTY(EditAnywhere)
 	UCurveFloat* ResetCameraCurve;
+	bool InAir = false;
+	bool OnGround = false;
+	
+	bool bJumpInput;
 	UFUNCTION()
 	void ADSCamera();
 	void ADSPress();
@@ -59,14 +66,15 @@ class AHordeModeCharacter : public ACharacter
 	float ADSZoomIn = 100;
 	float ADSDefault;
 	float ADSTarget;
-	
+
+	void JumpAction();
 
 	// COMBAT
 	void Attack();
 	void ReleaseAttack();
 	bool bIsHit;
 
-	
+	UPROPERTY()
 	AGunBase* CurrentGun;
 	
 	UPROPERTY(EditAnywhere)
@@ -83,6 +91,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseLookUpRate;
 
+	float ForwardInput;
+	float RightInput;
 protected:
 	void Tick(float DeltaSeconds) override;
 
@@ -92,6 +102,7 @@ protected:
 
 	/** Called for side to side input */
 	void MoveRight(float Value);
+
 
 
 
@@ -107,7 +118,15 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
 	UFUNCTION(BlueprintPure)
+	TEnumAsByte<EActionState> GetActionState();
+	UFUNCTION(BlueprintPure)
+	TEnumAsByte<EAimingState> GetAimingState();
+	UFUNCTION(BlueprintPure)
+	bool JumpInputPressed();
+	
+	
 	bool IsCharacterAiming();
+	
 	bool bIsAiming = false;
 };
 

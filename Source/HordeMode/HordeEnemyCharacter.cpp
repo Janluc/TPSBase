@@ -54,7 +54,7 @@ FHitResult AHordeEnemyCharacter::HitReaction(FDamageEvent const& DamageEvent, AG
 	if (HitResult.BoneName != "pelvis")
 	{
 		FVector ShotDirection = HitPoint->ShotDirection + FVector(0,0, 50);
-		float ImpulseAmount = HitResult.BoneName == "spine_02" ? DamageCauser->GetWeaponKnockback() : 200;
+		float ImpulseAmount = HitResult.BoneName == "spine_02" ? DamageCauser->GetWeaponKnockback() : DamageCauser->GetWeaponLimbKnockback();
 		GetMesh()->AddImpulseAtLocation(ShotDirection * ImpulseAmount, HitResult.ImpactPoint, HitResult.BoneName);
 	}
 	return HitResult;
