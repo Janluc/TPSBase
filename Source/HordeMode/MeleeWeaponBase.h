@@ -4,16 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "HordeBaseWeaponClass.generated.h"
+#include "MeleeWeaponBase.generated.h"
 
 UCLASS()
-class HORDEMODE_API AHordeBaseWeaponClass : public AActor
+class HORDEMODE_API AMeleeWeaponBase : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	AHordeBaseWeaponClass();
+	AMeleeWeaponBase();
 
 protected:
 	// Called when the game starts or when spawned
