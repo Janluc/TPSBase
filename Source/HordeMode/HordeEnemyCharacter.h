@@ -4,9 +4,12 @@
 
 #include "CoreMinimal.h"
 
+
+#include "ProceduralMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "HordeEnemyCharacter.generated.h"
 
+class UProceduralMeshComponent;
 class AGunBase;
 UCLASS()
 class HORDEMODE_API AHordeEnemyCharacter : public ACharacter
@@ -14,6 +17,10 @@ class HORDEMODE_API AHordeEnemyCharacter : public ACharacter
 	GENERATED_BODY()
 
 	FHitResult HitReaction(FDamageEvent const& DamageEvent, AGunBase* DamageCauser);
+
+	UFUNCTION(BlueprintCallable)
+	void CopySkeletalMeshToProcedural(USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, UProceduralMeshComponent* ProcMeshComponent);
+
 
 public:
 	// Sets default values for this character's properties
@@ -30,5 +37,12 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	
+	UFUNCTION(BlueprintPure)
+	TArray<FVector> GetVertices();
+	UFUNCTION(BlueprintPure)
+    TArray<FVector> GetNormals();
+	UFUNCTION(BlueprintPure)
+	TArray<FProcMeshTangent> GetTangents();
+	UFUNCTION(BlueprintPure)
+	TArray<FVector2D> GetUVs();
 };

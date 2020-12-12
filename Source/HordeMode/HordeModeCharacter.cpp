@@ -2,6 +2,7 @@
 
 #include "HordeModeCharacter.h"
 #include "GunBase.h"
+#include "MeleeWeaponBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
@@ -125,6 +126,10 @@ void AHordeModeCharacter::BeginPlay()
 	ResetCameraTimeline->AddInterpFloat(ResetCameraCurve, ResetCameraTimelineFunction);
 	CurrentGun = GetWorld()->SpawnActor<AGunBase>(StartingGun);
 	CurrentGun->SetOwner(this);
+
+	MeleeWeapon = GetWorld()->SpawnActor<AMeleeWeaponBase>(StartingMeleeWeapon);
+	MeleeWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("RightHandWeaponSocket"));
+	MeleeWeapon->SetOwner(this);
 }
 
 void AHordeModeCharacter::MoveForward(float Value)
@@ -213,7 +218,8 @@ void AHordeModeCharacter::Attack()
 	{
 		CurrentGun->PullTrigger();
 	}
-		
+	else
+		MeleeWeapon->SwingWeapon();
 }
 
 

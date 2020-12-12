@@ -74,7 +74,8 @@ private:
 	AGunBase* CurrentGun;
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AGunBase> StartingGun;
-	UPROPERTY(EditAnywhere)
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapons", meta = (AllowPrivateAccess = "true"))
 	AMeleeWeaponBase* MeleeWeapon;
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AMeleeWeaponBase> StartingMeleeWeapon;
