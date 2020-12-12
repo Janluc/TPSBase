@@ -9,6 +9,11 @@
 #include "GameFramework/Character.h"
 #include "HordeModeCharacter.generated.h"
 
+class UTimelineComponent;
+class AGunBase;
+class FOnTimelineFloat;
+class AMeleeWeaponBase;
+
 UENUM(BlueprintType)
 
 enum EActionState
@@ -27,23 +32,22 @@ enum EAimingState
 	NotAiming UMETA(Display = "NotAiming")
 };
 
-class UTimelineComponent;
-class AGunBase;
-class FOnTimelineFloat;
+
 UCLASS(config=Game)
 class AHordeModeCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
+// VARIABLES
+private:
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
-
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
-
 	
+	// STATE MACHINE
 	TEnumAsByte<EActionState> ActionState = Idle;
 	TEnumAsByte<EAimingState> AimingState = NotAiming;
 	
@@ -53,46 +57,61 @@ class AHordeModeCharacter : public ACharacter
 	FOnTimelineFloat ResetCameraTimelineFunction;
 	UPROPERTY(EditAnywhere)
 	UCurveFloat* ResetCameraCurve;
+	float ADSZoomIn = 100;
+	float ADSDefault;
+	float ADSTarget;
+
+	// IN AIR
 	bool InAir = false;
 	bool OnGround = false;
-	
 	bool bJumpInput;
+
+	// COMBAT
+	bool bIsHit;
+
+	// WEAPONS
+	UPROPERTY()
+	AGunBase* CurrentGun;
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AGunBase> StartingGun;
+	UPROPERTY(EditAnywhere)
+	AMeleeWeaponBase* MeleeWeapon;
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AMeleeWeaponBase> StartingMeleeWeapon;
+
+public:
+
+
+	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
+	float BaseTurnRate;
+	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
+	float BaseLookUpRate;
+
+	// INPUT
+	bool bIsAiming = false;
+	float ForwardInput;
+	float RightInput;
+
+
+// FUNCTIONS
+private:
+	
+	// ADS TIMELINE
 	UFUNCTION()
 	void ADSCamera();
 	void ADSPress();
 	void ADSRelease();
 	void ADSSetCamera(float Target, bool IsAiming);
 
-	float ADSZoomIn = 100;
-	float ADSDefault;
-	float ADSTarget;
-
-	void JumpAction();
-
 	// COMBAT
 	void Attack();
 	void ReleaseAttack();
-	bool bIsHit;
 
-	UPROPERTY()
-	AGunBase* CurrentGun;
-	
-	UPROPERTY(EditAnywhere)
-	TSubclassOf<AGunBase> StartingGun;
+	// JUMP / IN AIR
+	void JumpAction();
 
-public:
-	AHordeModeCharacter();
-
-	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
-	float BaseTurnRate;
-
-	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
-	float BaseLookUpRate;
-
-	float ForwardInput;
-	float RightInput;
 protected:
 	void Tick(float DeltaSeconds) override;
 
@@ -103,30 +122,26 @@ protected:
 	/** Called for side to side input */
 	void MoveRight(float Value);
 
-
-
-
-protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	// End of APawn interface
 
 public:
+	AHordeModeCharacter();
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-
-	UFUNCTION(BlueprintPure)
-	TEnumAsByte<EActionState> GetActionState();
-	UFUNCTION(BlueprintPure)
-	TEnumAsByte<EAimingState> GetAimingState();
+	
+	// BLUEPRINT INPUT CHECK FUNCTIONS	
 	UFUNCTION(BlueprintPure)
 	bool JumpInputPressed();
+		// STATE MACHINE	
+	UFUNCTION(BlueprintPure)
+    TEnumAsByte<EActionState> GetActionState();
+	UFUNCTION(BlueprintPure)
+    TEnumAsByte<EAimingState> GetAimingState();
 	
-	
-	bool IsCharacterAiming();
-	
-	bool bIsAiming = false;
+
 };
 

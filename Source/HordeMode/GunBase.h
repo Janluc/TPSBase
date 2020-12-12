@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "GameFramework/Actor.h"
 #include "GunBase.generated.h"
 
@@ -25,6 +26,7 @@ class HORDEMODE_API AGunBase : public AActor
 	float WeaponLimbKnockback = 200; 
 	FTimerHandle FireRateHandle;
 
+	
 	UPROPERTY(EditAnywhere)
 	UAnimMontage* FireAnim;
 	AHordeModeCharacter* Owner;

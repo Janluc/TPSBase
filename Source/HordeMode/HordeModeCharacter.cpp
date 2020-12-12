@@ -9,7 +9,6 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "Logging/TokenizedMessage.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AHordeModeCharacter
@@ -91,11 +90,6 @@ TEnumAsByte<EAimingState> AHordeModeCharacter::GetAimingState()
 bool AHordeModeCharacter::JumpInputPressed()
 {
 	return bJumpInput;
-}
-
-bool AHordeModeCharacter::IsCharacterAiming()
-{
-	return bIsAiming;
 }
 
 
