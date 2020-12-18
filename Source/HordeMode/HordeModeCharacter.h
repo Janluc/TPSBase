@@ -26,6 +26,15 @@ enum EActionState
 };
 
 UENUM(BlueprintType)
+enum EMidAttackState
+{
+	NoAttack UMETA(DisplayName = "No Attack"),
+	AttackBuffer UMETA(DisplayName = "Attack Buffer"),
+	PostAttack UMETA(DisplayName = "Post Attack"),
+	NextCombo UMETA(DisplayName = "Next Combo")
+};
+
+UENUM(BlueprintType)
 enum EAimingState
 {
 	Aiming UMETA(Display = "Aiming"),
@@ -48,7 +57,7 @@ private:
 	class UCameraComponent* FollowCamera;
 	
 	// STATE MACHINE
-	TEnumAsByte<EActionState> ActionState = Idle;
+	
 	TEnumAsByte<EAimingState> AimingState = NotAiming;
 	
 	// ADS TIMELINE
@@ -61,6 +70,7 @@ private:
 	float ADSDefault;
 	float ADSTarget;
 
+
 	// IN AIR
 	bool InAir = false;
 	bool OnGround = false;
@@ -68,21 +78,18 @@ private:
 
 	// COMBAT
 	bool bIsHit;
-
+	float CameraShoulderTarget;
+	
 	// WEAPONS
 	UPROPERTY()
 	AGunBase* CurrentGun;
-	UPROPERTY(EditAnywhere)
-	TSubclassOf<AGunBase> StartingGun;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapons", meta = (AllowPrivateAccess = "true"))
-	AMeleeWeaponBase* MeleeWeapon;
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AMeleeWeaponBase> StartingMeleeWeapon;
 
 public:
 
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TEnumAsByte<EMidAttackState> MidAttack = NoAttack;
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseTurnRate;
@@ -94,8 +101,18 @@ public:
 	bool bIsAiming = false;
 	float ForwardInput;
 	float RightInput;
-
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bAttackBuffer;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TEnumAsByte<EActionState> ActionState = Idle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= "Weapons")
+	int32 ComboCounter = 0;
+	// WEAPONS
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= "Weapons")
+	TSubclassOf<AGunBase> StartingGun;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapons")
+	AMeleeWeaponBase* CurrentMeleeWeapon;
+	
 // FUNCTIONS
 private:
 	
@@ -107,7 +124,7 @@ private:
 	void ADSSetCamera(float Target, bool IsAiming);
 
 	// COMBAT
-	void Attack();
+	
 	void ReleaseAttack();
 
 	// JUMP / IN AIR
@@ -133,7 +150,9 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-	
+
+	UFUNCTION(BlueprintCallable)
+	void Attack();
 	// BLUEPRINT INPUT CHECK FUNCTIONS	
 	UFUNCTION(BlueprintPure)
 	bool JumpInputPressed();

@@ -3,6 +3,7 @@
 #include "HordeModeCharacter.h"
 #include "GunBase.h"
 #include "MeleeWeaponBase.h"
+#include "PacketHandler.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
@@ -10,6 +11,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AHordeModeCharacter
@@ -97,26 +99,7 @@ bool AHordeModeCharacter::JumpInputPressed()
 void AHordeModeCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	UE_LOG(LogTemp, Warning, TEXT("Player State: %s"), *UEnum::GetValueAsString<EActionState>(ActionState));
-	if (GetCharacterMovement()->IsFalling())
-	{
-		if(!InAir)
-		{
-			InAir = true;
-			ActionState = Jumping;
-			bJumpInput = false;
-			OnGround = false;
-		}
-	}
-	else
-	{
-		if(!OnGround)
-		{
-			OnGround = true;
-			ActionState = Idle;
-			InAir = false;
-		}
-	}
+	UE_LOG(LogTemp, Warning, TEXT("Player State: %s"), *UEnum::GetValueAsString<EMidAttackState>(MidAttack));
 }
 
 void AHordeModeCharacter::BeginPlay()
@@ -127,9 +110,9 @@ void AHordeModeCharacter::BeginPlay()
 	CurrentGun = GetWorld()->SpawnActor<AGunBase>(StartingGun);
 	CurrentGun->SetOwner(this);
 
-	MeleeWeapon = GetWorld()->SpawnActor<AMeleeWeaponBase>(StartingMeleeWeapon);
-	MeleeWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("RightHandWeaponSocket"));
-	MeleeWeapon->SetOwner(this);
+	CurrentMeleeWeapon = GetWorld()->SpawnActor<AMeleeWeaponBase>(StartingMeleeWeapon);
+	CurrentMeleeWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("weapon_r"));
+	CurrentMeleeWeapon->SetOwner(this);
 }
 
 void AHordeModeCharacter::MoveForward(float Value)
@@ -138,25 +121,43 @@ void AHordeModeCharacter::MoveForward(float Value)
 	switch (ActionState)
 	{
 		case Idle: case Running: case Jumping:
-		if ((Controller != NULL) && (Value != 0.0f))
-		{
-			// find out which way is forward
-			
-			const FRotator Rotation = Controller->GetControlRotation();
-			const FRotator YawRotation(0, Rotation.Yaw, 0);
+			if ((Controller != NULL) && (Value != 0.0f))
+			{
+				// find out which way is forward
+				
+				const FRotator Rotation = Controller->GetControlRotation();
+				const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-			// get forward vector
-			const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-			AddMovementInput(Direction, Value);
+				// get forward vector
+				const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+				AddMovementInput(Direction, Value);
+
+				ActionState = Running;
+			}
+			else if (RightInput == 0.0f && !GetCharacterMovement()->IsFalling())
+				ActionState = Idle;
 			if (GetCharacterMovement()->IsFalling())
 			{
 				ActionState = Jumping;
-				return;
 			}
-			ActionState = Running;
-		}
-		else if (RightInput == 0.0f && !GetCharacterMovement()->IsFalling())
-			ActionState = Idle;
+			break;
+		
+		case Attacking:
+			switch (MidAttack)
+			{
+				case PostAttack:
+					if (Value != 0)
+					{
+						MidAttack = NoAttack;
+						ActionState = Running;
+						StopAnimMontage();
+						ComboCounter = 0;
+					}
+					
+					break;
+				default:
+					break;
+			}
 		break;
 
 		default:
@@ -179,15 +180,33 @@ void AHordeModeCharacter::MoveRight(float Value)
     		// get forward vector
     		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
     		AddMovementInput(Direction, Value);
-	    	if (GetCharacterMovement()->IsFalling())
-	    	{
-	    		ActionState = Jumping;
-	    		return;
-	    	}
+	    	
 	    	ActionState = Running;
 	    }
 		else if (ForwardInput == 0.0f && !GetCharacterMovement()->IsFalling())
 			ActionState = Idle;
+		
+		if (GetCharacterMovement()->IsFalling())
+		{
+			ActionState = Jumping;
+		}
+		break;
+	case Attacking:
+		switch (MidAttack)
+		{
+			default:
+				break;
+			case PostAttack:
+				if (Value != 0)
+				{
+					
+					MidAttack = NoAttack;
+					ActionState = Running;
+					StopAnimMontage();
+					ComboCounter = 0;
+				}
+				break;
+		}
 		break;
 
 	default:
@@ -219,7 +238,73 @@ void AHordeModeCharacter::Attack()
 		CurrentGun->PullTrigger();
 	}
 	else
-		MeleeWeapon->SwingWeapon();
+	{
+
+		FVector ControlForwardVector = UKismetMathLibrary::GetForwardVector(GetControlRotation());
+		FVector ControlRightVector = UKismetMathLibrary::GetRightVector(GetControlRotation());
+		FVector TargetDirection;
+
+
+		if(ForwardInput != 0 || RightInput != 0)
+			TargetDirection = (ForwardInput * ControlForwardVector) + (RightInput * ControlRightVector);
+		else
+			TargetDirection = ControlForwardVector;
+		
+		
+		
+		switch (ActionState)
+		{
+			case Idle: case Running:
+
+				SetActorRotation(FRotator(0, TargetDirection.Rotation().Yaw, 0));
+				if(ComboCounter > CurrentMeleeWeapon->Combos.Num() - 1)
+				{
+					ComboCounter = 0;
+					CurrentMeleeWeapon->SwingWeapon(ComboCounter);
+					ComboCounter++;
+				}
+				else
+				{
+					CurrentMeleeWeapon->SwingWeapon(ComboCounter);
+					ComboCounter++;
+				}
+				
+				ActionState = Attacking;
+			break;
+
+			case Attacking:
+				switch(MidAttack)
+				{
+					case AttackBuffer:
+						bAttackBuffer = true;
+					break;
+					
+						
+					case PostAttack: case NextCombo:
+						SetActorRotation(FRotator(0, TargetDirection.Rotation().Yaw, 0));
+						MidAttack = NoAttack;
+						if(ComboCounter > CurrentMeleeWeapon->Combos.Num() - 1)
+						{
+							ComboCounter = 0;
+							CurrentMeleeWeapon->SwingWeapon(ComboCounter);
+							ComboCounter++;
+						}
+							
+						else
+						{
+							CurrentMeleeWeapon->SwingWeapon(ComboCounter);
+							ComboCounter++;
+						}
+					break;
+					default:
+						break;
+				}
+			default:
+				break;
+		}
+
+	}
+
 }
 
 
@@ -232,19 +317,29 @@ void AHordeModeCharacter::ReleaseAttack()
 void AHordeModeCharacter::ADSCamera()
 {
 	CameraBoom->TargetArmLength = FMath::FInterpTo(CameraBoom->TargetArmLength, ADSTarget, GetWorld()->GetDeltaSeconds(), 15);
-	
+	CameraBoom->SocketOffset = FVector(0,70, FMath::FInterpTo(CameraBoom->SocketOffset.Z, CameraShoulderTarget, GetWorld()->GetDeltaSeconds(), 15)); 
 }
 
 void AHordeModeCharacter::ADSPress()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Press"))
-	AimingState = Aiming;
-	ADSSetCamera(ADSZoomIn, true);
+	switch (ActionState)
+	{
+		case Attacking:
+			break;
+		default:
+			AimingState = Aiming;
+			CameraShoulderTarget = 0;
+			ADSSetCamera(ADSZoomIn, true);
+			break;
+	}
+
 }
 
 void AHordeModeCharacter::ADSRelease()
 {
 	AimingState = NotAiming;
+	CameraShoulderTarget = -50;
 	ADSSetCamera(ADSDefault, false);
 }
 
